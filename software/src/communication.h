@@ -56,6 +56,9 @@
 #define FID_UNDER_VOLTAGE 26
 #define FID_POSITION_REACHED 27
 #define FID_VELOCITY_REACHED 28
+#define FID_ENABLE_POSITION_REACHED 29
+#define FID_DISABLE_POSITION_REACHED 30
+#define FID_IS_POSITION_REACHED_ENABLED 31
 
 #define COM_MESSAGES_USER \
 	{FID_ENABLE, (message_handler_func_t)enable}, \
@@ -82,7 +85,10 @@
 	{FID_GET_STACK_INPUT_VOLTAGE, (message_handler_func_t)get_stack_input_voltage}, \
 	{FID_GET_EXTERNAL_INPUT_VOLTAGE, (message_handler_func_t)get_external_input_voltage}, \
 	{FID_SET_MINIMUM_VOLTAGE, (message_handler_func_t)set_minimum_voltage}, \
-    {FID_GET_MINIMUM_VOLTAGE, (message_handler_func_t)get_minimum_voltage},
+    {FID_GET_MINIMUM_VOLTAGE, (message_handler_func_t)get_minimum_voltage}, \
+	{FID_ENABLE_POSITION_REACHED, (message_handler_func_t)enable_position_reached_callback}, \
+	{FID_DISABLE_POSITION_REACHED, (message_handler_func_t)disable_position_reached_callback}, \
+	{FID_IS_POSITION_REACHED_ENABLED, (message_handler_func_t)is_position_reached_callback_enabled},
 
 typedef struct {
 	MessageHeader header;

@@ -52,6 +52,11 @@ extern uint16_t servo_minimum_voltage;
 extern bool velocity_reached_callback_enabled;
 extern bool position_reached_callback_enabled;
 
+// Custom CODE Start
+// Used to store the dim set point
+extern uint32_t servo_34[];
+// Custom CODE End
+
 void enable(const ComType com, const Enable *data) {
 	uint8_t servo_start;
 	uint8_t servo_end;
@@ -152,6 +157,19 @@ void set_position(const ComType com, const SetPosition *data) {
 
 	for(uint8_t servo = servo_start; servo < servo_end; servo++) {
 		if(servo_bitmask & (1 << servo)) {
+			// Custom Code Start
+			// Store received servo position and skip servo movement
+			if(servo == 3 || servo == 4) {
+				if(servo == 3) {
+					servo_34[0] = position;
+				}
+				if(servo == 4) {
+					servo_34[1] = position;
+				}
+				continue;
+			}
+			// Custom Code End
+			
 			if(position < servo_min_degree[servo]) {
 				position = servo_min_degree[servo];
 			}
@@ -198,6 +216,15 @@ void get_position(const ComType com, const GetPosition *data) {
 	gpr.header        = data->header;
 	gpr.header.length = sizeof(GetPositionReturn);
 	gpr.position      = servo_position_orig[servo];
+	
+	// Custom Code Start
+	// Override actual servo position with stored servo position
+	if(servo == 3){
+		gpr.position      = servo_34[0];
+	} else if (servo == 4){
+		gpr.position      = servo_34[1];
+	}
+	// Custom Code End
 
 	send_blocking_with_timeout(&gpr, sizeof(GetPositionReturn), com);
 	logservoi("get_position %d: %d %d\n\r", servo, servo_position[servo], gpr.position);
@@ -698,3 +725,4 @@ void is_position_reached_callback_enabled(const ComType com, const IsPositionRea
 
 	send_blocking_with_timeout(&iprcer, sizeof(IsPositionReachedCallbackEnabledReturn), com);
 }
+

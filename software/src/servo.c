@@ -282,6 +282,22 @@ uint32_t tick_message = 0;
 
 Pin pin_voltage_switch = VOLTAGE_STACK_SWITCH_PIN;
 
+// Custom CODE Start
+// Renaming the pins from the bricklets for easier recognition
+Pin io4_pin_0 = BRICKLET_A_PIN_1_AD;
+Pin io4_pin_1 = BRICKLET_A_PIN_2_DA;
+Pin relay1 = BRICKLET_B_PIN_1_AD;
+Pin relay2 = BRICKLET_B_PIN_2_DA;
+
+// Setting the default target angle for the two servo pwm channels
+uint32_t servo_34[2] = { 25, 75 };
+// Setting the default state for the two pwm channels 
+// 0 = off
+// 1 = dimming down
+// 2 = dimming up
+uint32_t state_34[2] = { 0, 0 };
+// Custom CODE End
+
 int32_t servo_ns_to_pwm(const uint8_t servo, const int32_t position) {
 	return (position/((1000/servo_pwmtc_mult[servo])*2));
 }
@@ -294,9 +310,155 @@ void tick_task(const uint8_t tick_type) {
 
 	if(tick_type == TICK_TASK_TYPE_CALCULATION) {
 		tick++;
-		if(tick % 50 == 0) {
+		if (tick % 50 == 0) {
 			update_servo_current();
 		}
+
+		// Custom CODE Start
+		// Using running code every 100 ticks so relay doesnt produce errors 
+		// relay is switched and internal state updateds
+		if (tick % 100 == 0) {
+			// PIN_0 => LED1
+			if (PIO_Get(&io4_pin_0) == 0) {
+				// if io4 is pulled to low, activate relay and change state to dimming up
+				PIO_Set(&relay1);
+				state_34[0] = 2;
+			} else if (PIO_Get(&io4_pin_0) == 1) {
+				// if io4 is pulled to high, change state to dimming down
+				state_34[0] = 1;
+			}
+			if (state_34[0] == 1
+					&& 0 == SCALE((int64_t) servo_position[3],
+									(int64_t) servo_min_pulse_width[3],
+									(int64_t) servo_max_pulse_width[3],
+									(int64_t) servo_min_degree[3],
+									(int64_t) servo_max_degree[3])) {
+				// if state is dimming down and servo position is 0, clear relay and change state to off
+				PIO_Clear(&relay1);
+				state_34[0] = 0;
+			}
+
+			// PIN_1 => LED2
+			if (PIO_Get(&io4_pin_1) == 0) {
+				// if io4 is pulled to low, activate relay and change state to dimming up
+				PIO_Set(&relay2);
+				state_34[1] = 2;
+			} else if (PIO_Get(&io4_pin_1) == 1) {
+				// if io4 is pulled to high, change state to dimming down
+				state_34[1] = 1;
+			}
+			if (state_34[1] == 1
+					&& 0 == SCALE((int64_t) servo_position[4],
+									(int64_t) servo_min_pulse_width[4],
+									(int64_t) servo_max_pulse_width[4],
+									(int64_t) servo_min_degree[4],
+									(int64_t) servo_max_degree[4])) {
+				// if state is dimming down and servo position is 0, clear relay and change state to off
+				PIO_Clear(&relay2);
+				state_34[1] = 0;
+			}
+		}
+		
+		if (state_34[0] == 2) {
+			// if dimming up servo 3 calculate position_goal from stored value
+			if (servo_34[0] < servo_min_degree[3]) {
+				servo_34[0] = servo_min_degree[3];
+			} else if (servo_34[0] > servo_max_degree[3]) {
+				servo_34[0] = servo_max_degree[3];
+			}
+
+			servo_position_orig[3] = servo_34[0];
+
+			uint32_t value = SCALE((int64_t) servo_34[0],
+					(int64_t) servo_min_degree[3],
+					(int64_t) servo_max_degree[3],
+					(int64_t) servo_min_pulse_width[3],
+					(int64_t) servo_max_pulse_width[3]);
+
+			if ((servo_position_goal[3] < servo_position[3]) && (value > servo_position[3])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[3] = 0;
+			}
+
+			if ((servo_position_goal[3] > servo_position[3]) && (value < servo_position[3])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[3] = 0;
+			}
+
+			servo_position_goal[3] = value;
+		}
+		if (state_34[0] == 1) {
+			// if dimming down servo 3 calculate position_goal to 0
+			servo_position_orig[3] = 0;
+
+			uint32_t value = SCALE((int64_t) 0, (int64_t) servo_min_degree[3],
+					(int64_t) servo_max_degree[3],
+					(int64_t) servo_min_pulse_width[3],
+					(int64_t) servo_max_pulse_width[3]);
+
+			if ((servo_position_goal[3] < servo_position[3]) && (value > servo_position[3])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[3] = 0;
+			}
+
+			if ((servo_position_goal[3] > servo_position[3]) && (value < servo_position[3])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[3] = 0;
+			}
+
+			servo_position_goal[3] = value;
+		}
+
+		if (state_34[1] == 2) {
+			// if dimming up servo 4 calculate position_goal from stored value
+			if (servo_34[1] < servo_min_degree[4]) {
+				servo_34[1] = servo_min_degree[4];
+			} else if (servo_34[1] > servo_max_degree[4]) {
+				servo_34[1] = servo_max_degree[4];
+			}
+
+			servo_position_orig[4] = servo_34[1];
+
+			uint32_t value = SCALE((int64_t) servo_34[1],
+					(int64_t) servo_min_degree[4],
+					(int64_t) servo_max_degree[4],
+					(int64_t) servo_min_pulse_width[4],
+					(int64_t) servo_max_pulse_width[4]);
+
+			if ((servo_position_goal[4] < servo_position[4]) && (value > servo_position[4])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[4] = 0;
+			}
+
+			if ((servo_position_goal[4] > servo_position[4]) && (value < servo_position[4])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[4] = 0;
+			}
+
+			servo_position_goal[4] = value;
+		}
+		if (state_34[1] == 1) {
+			// if dimming down servo 3 calculate position_goal to 0
+			servo_position_orig[4] = 0;
+
+			uint32_t value = SCALE((int64_t) 0, (int64_t) servo_min_degree[4],
+					(int64_t) servo_max_degree[4],
+					(int64_t) servo_min_pulse_width[4],
+					(int64_t) servo_max_pulse_width[4]);
+
+			if ((servo_position_goal[4] < servo_position[4]) && (value > servo_position[4])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[4] = 0;
+			}
+
+			if ((servo_position_goal[4] > servo_position[4]) && (value < servo_position[4])) {
+				// we have changed direction -> velocity = 0
+				servo_velocity[4] = 0;
+			}
+
+			servo_position_goal[4] = value;
+		}
+		// Custom CODE End
 
 		uint32_t pwm_mask = PWM->PWM_ISR1;
 
@@ -699,6 +861,13 @@ void servo_init(void) {
 
 	// Initializie extern AD converter (for servo current measurement)
 	mcp3008_init();
+	// Custom Code Start
+	servo_enable(0);
+	servo_enable(1);
+	servo_enable(2);
+	servo_enable(3);
+	servo_enable(4);
+	// Custom Code End
 }
 
 void servo_set_period(const uint8_t servo, const uint16_t period) {
